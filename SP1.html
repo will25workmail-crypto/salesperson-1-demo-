@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipeline – Fixed & Private</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+  <div class="bg-gray-800 p-5 text-center text-4xl font-bold">Sales Pipeline</div>
+  <div class="grid grid-cols-8 gap-2 p-3 h-screen">
+    <div class="bg-blue-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Chatbot Lead</div><div id="chatbot-lead" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-indigo-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Qualified</div><div id="qualified" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-purple-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Appt Set</div><div id="appt-set" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-green-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Showed</div><div id="showed" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-yellow-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Wrote Up</div><div id="wrote-up" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-orange-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Sold</div><div id="sold" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-teal-600 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Delivered</div><div id="delivered" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+    <div class="bg-red-700 rounded-t-lg"><div class="p-3 text-center font-bold text-lg">Lost</div><div id="lost" class="bg-white text-black rounded-b-lg p-3 space-y-3 overflow-y-auto h-full"></div></div>
+  </div>
+
+<script>
+// ONLY THIS LINE IS DIFFERENT — YOUR NEW DEPLOYMENT
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzleiQlkUV9lQ4jo0jDeY2Wi2hqazb25c6_1gtC2faim5rSYBIRfbBRErKopGOM6fnVEg/exec'
+
+async function loadLeads() {
+  try {
+    const res = await fetch(SCRIPT_URL + '?t=' + Date.now())
+    const leads = await res.json()
+    document.querySelectorAll('[id]').forEach(c => c.innerHTML = '')
+    leads.forEach((l, i) => {
+      const card = document.createElement('div')
+      card.dataset.row = i + 2
+      card.className = 'bg-gray-100 p-4 rounded-lg shadow cursor-move text-sm'
+      const name = l.Name || l['C1: Name'] || '—'
+      const email = l.Email || l['B1: Email'] || ''
+      const phone = l.Phone || l['D1: Phone'] || ''
+      const vehicle = l['Vehicle Type'] || l['G1: Vehicle Type'] || ''
+      const budget = l.Budget || l['E1: Budget'] || ''
+      const timeline = l.Timeline || l['F1: Timeline'] || ''
+      const isHot = (l['Lead Type'] || l['A1: Lead Type'] || '').toLowerCase().trim() === 'hot'
+      card.innerHTML = `
+        <div class="font-bold text-base">${name}</div>
+        <div class="text-xs text-gray-600">${email} • ${phone}</div>
+        <div class="font-medium">${vehicle}</div>
+        <div class="text-xs">Budget: $${budget} • ${timeline}</div>
+        <span class="inline-block px-3 py-1 mt-2 text-xs font-bold rounded-full ${isHot ? 'bg-red-600 text-white' : 'bg-orange-500 text-white'}">
+          ${isHot ? 'HOT' : 'WARM'}
+        </span>
+      `
+      const stage = (l.Stage || l.stage || 'chatbot-lead').toLowerCase()
+      const target = stage.includes('appt') ? 'appt-set' :
+                     stage.includes('qualified') ? 'qualified' :
+                     stage.includes('show') ? 'showed' :
+                     stage.includes('wrote') ? 'wrote-up' :
+                     stage.includes('sold') ? 'sold' :
+                     stage.includes('delivered') ? 'delivered' :
+                     stage.includes('lost') ? 'lost' :
+                     'chatbot-lead'
+      document.getElementById(target).appendChild(card)
+    })
+    const stages = ['chatbot-lead','qualified','appt-set','showed','wrote-up','sold','delivered','lost']
+    stages.forEach(s => new Sortable(document.getElementById(s), {
+      group: 'pipeline',
+      animation: 150,
+      onEnd: e => {
+        const row = e.item.dataset.row
+        const newStage = e.to.id
+        fetch(`${SCRIPT_URL}?row=${row}&stage=${newStage}`, { method: 'POST' })
+      }
+    }))
+  } catch (e) {
+    console.error(e)
+  }
+}
+loadLeads()
+setInterval(loadLeads, 10000)
+</script>
+</body>
+</html>
